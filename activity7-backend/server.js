@@ -129,6 +129,47 @@ app.use((error, req, res, next) => {
   return res.status(500).json({ message: "An unexpected server error occurred." });
 });
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Study Support Requests API listening on port ${port}`);
-});
+const port = process.env.PORT || 3000;
+
+async function start() {
+  try {
+    // Create table if it does not exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS records (
+        id          SERIAL PRIMARY KEY,
+        title       VARCHAR(80)  NOT NULL,
+        category    VARCHAR(40)  NOT NULL,
+        description VARCHAR(300) NOT NULL,
+        status      VARCHAR(20)  NOT NULL
+          CHECK (status IN ('Pending', 'In progress', 'Completed'))
+      );
+    `);
+
+    // Check if table is empty
+    const count = await pool.query("SELECT COUNT(*) FROM records");
+    if (parseInt(count.rows[0].count) === 0) {
+      console.log("Seeding initial records...");
+      await pool.query(`
+        INSERT INTO records (title, category, description, status) VALUES
+        ('Help with recursion in Java', 'Programming', 'I am struggling to understand how recursive methods work, especially with base cases and stack frames. Need clear examples.', 'Pending'),
+        ('Bayes theorem practice questions', 'Mathematics', 'Need extra practice problems and step-by-step solutions for Bayes’ theorem and conditional probability.', 'In progress'),
+        ('Normalisation of database tables', 'Databases', 'Confused about 1NF, 2NF and 3NF. Can someone review my ER diagram and normalised tables?', 'Pending'),
+        ('Debugging ArrayIndexOutOfBounds', 'Programming', 'My Java program keeps throwing ArrayIndexOutOfBoundsException when I try to process student marks. Need help finding the bug.', 'Completed'),
+        ('Matrix multiplication method', 'Mathematics', 'I need a clear explanation and worked example of multiplying two 3×3 matrices by hand and by formula.', 'Pending'),
+        ('SQL JOIN types explained', 'Databases', 'Please explain INNER, LEFT, RIGHT and FULL OUTER JOIN with simple student–course examples.', 'In progress'),
+        ('Understanding Big-O notation', 'Programming', 'I need help analysing the time complexity of a few sorting algorithms and explaining Big-O in plain language.', 'Pending'),
+        ('Probability tree diagrams', 'Mathematics', 'Struggling to draw and interpret probability tree diagrams for sequential events. Need guided examples.', 'Completed'),
+        ('Primary vs foreign keys', 'Databases', 'Clarify the difference between primary keys, foreign keys and candidate keys with practical table examples.', 'Pending');
+      `);
+      console.log("Seed data inserted.");
+    }
+  } catch (err) {
+    console.error("Database setup error:", err.message);
+  }
+
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`Server listening on port ${port}`);
+  });
+}
+
+start();
